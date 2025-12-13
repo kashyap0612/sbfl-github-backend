@@ -21,10 +21,7 @@ app.add_middleware(
 MAX_FILE_SIZE = 200_000  # 200 KB
 
 ALLOWED_EXTENSIONS = {
-    ".py", ".cpp", ".c", ".h", ".hpp",
-    ".js", ".ts", ".java",
-    ".go", ".rs",
-    ".md", ".txt"
+    ".py"
 }
 
 # -------------------- MODELS --------------------
@@ -156,10 +153,11 @@ def repo_files(data: RepoRequest):
     tree = fetch_repo_tree(owner, repo, repo_data["default_branch"])
 
     files = [
-        item["path"]
-        for item in tree
-        if item["type"] == "blob"
+    item["path"]
+    for item in tree
+    if item["type"] == "blob" and item["path"].lower().endswith(".py")
     ]
+
 
     return {
         "total_files": len(files),
