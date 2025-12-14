@@ -5,6 +5,7 @@ import re
 import requests
 import base64
 import os
+os.chdir("/repo")
 
 app = FastAPI()
 app.add_middleware(
