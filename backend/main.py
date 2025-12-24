@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -6,7 +13,13 @@ import requests
 import base64
 import os
 from pathlib import Path
-from openai import OpenAI
+
+from runner.repo_manager import clone_repo
+from runner.project_inspector import inspect_project
+from runner.coverage_runner import run_tests_with_coverage
+from runner.matrix_builder import build_coverage_matrix
+from runner.ochiai import compute_ochiai_scores
+from runner.result_formatter import format_sbfl_results
 
 # -------------------- APP INIT --------------------
 
@@ -33,9 +46,6 @@ ALLOWED_EXTENSIONS = {
     ".md"
 }
 
-# OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # -------------------- MODELS --------------------
 
 class RepoRequest(BaseModel):
@@ -44,10 +54,6 @@ class RepoRequest(BaseModel):
 class FileRequest(BaseModel):
     repo_url: str
     path: str
-
-class ChatFileRequest(BaseModel):
-    file_content: str
-    question: str
 
 # -------------------- HEALTH --------------------
 
@@ -110,7 +116,7 @@ def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
 
     return decoded
 
-# -------------------- ENDPOINTS --------------------
+# -------------------- GITHUB BROWSING ENDPOINTS --------------------
 
 @app.post("/repo-info")
 def repo_info(data: RepoRequest):
@@ -176,38 +182,59 @@ def repo_file_content(data: FileRequest):
 
     raise HTTPException(status_code=404, detail="File not found")
 
+# -------------------- SBFL ENDPOINT --------------------
+
+@app.post("/run-sbfl")
+def run_sbfl(data: RepoRequest):
+    try:
+        repo_path = clone_repo(data.repo_url)
+        info = inspect_project(repo_path)
+
+        cov_results = run_tests_with_coverage(repo_path, info["test_files"])
+        matrix = build_coverage_matrix(cov_results)
+        scores = compute_ochiai_scores(matrix)
+        formatted = format_sbfl_results(scores)
+
+        return formatted
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# OpenAI client
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 # -------------------- CHAT WITH FILE --------------------
 
-@app.post("/chat-file")
-def chat_file(data: ChatFileRequest):
-    if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=500, detail="OpenAI API key not set")
+# @app.post("/chat-file")
+# def chat_file(data: ChatFileRequest):
+#     if not os.getenv("OPENAI_API_KEY"):
+#         raise HTTPException(status_code=500, detail="OpenAI API key not set")
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a code assistant. "
-                "Answer ONLY using the given file content. "
-                "If the answer is not in the file, say you cannot find it."
-            )
-        },
-        {
-            "role": "user",
-            "content": f"FILE CONTENT:\n{data.file_content}"
-        },
-        {
-            "role": "user",
-            "content": data.question
-        }
-    ]
+#     messages = [
+#         {
+#             "role": "system",
+#             "content": (
+#                 "You are a code assistant. "
+#                 "Answer ONLY using the given file content. "
+#                 "If the answer is not in the file, say you cannot find it."
+#             )
+#         },
+#         {
+#             "role": "user",
+#             "content": f"FILE CONTENT:\n{data.file_content}"
+#         },
+#         {
+#             "role": "user",
+#             "content": data.question
+#         }
+#     ]
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0
-    )
+#     response = client.chat.completions.create(
+#         model="gpt-4o-mini",
+#         messages=messages,
+#         temperature=0
+#     )
 
-    return {
-        "answer": response.choices[0].message.content
-    }
+#     return {
+#         "answer": response.choices[0].message.content
+#     }
