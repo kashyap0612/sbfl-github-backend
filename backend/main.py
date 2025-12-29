@@ -1,18 +1,20 @@
+# cd backend
+# uvicorn main:app
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import re
 import requests
 import base64
-import os
 from pathlib import Path
 
-from backend.runner.repo_manager import clone_repo
-from backend.runner.project_inspector import inspect_project
-from backend.runner.coverage_runner import run_tests_with_coverage
-from backend.runner.matrix_builder import build_coverage_matrix
-from backend.runner.ochiai import compute_ochiai_scores
-from backend.runner.result_formatter import format_sbfl_results
+from runner.repo_manager import clone_repo
+from runner.project_inspector import inspect_project
+from runner.coverage_runner import run_tests_with_coverage
+from runner.matrix_builder import build_coverage_matrix
+from runner.ochiai import compute_ochiai_scores
+from runner.result_formatter import format_sbfl_results
 
 # -------------------- APP INIT --------------------
 
@@ -20,7 +22,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,6 +56,10 @@ class FileRequest(BaseModel):
 def health_check():
     return {"status": "ok"}
 
+@app.get("/")
+def root():
+    return {"message": "SBFL backend running"}
+
 # -------------------- HELPERS --------------------
 
 def parse_github_repo_url(url: str) -> tuple[str, str]:
@@ -63,7 +69,7 @@ def parse_github_repo_url(url: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 def fetch_repo_metadata(owner: str, repo: str) -> dict:
-    resp = requests.get(f"https://api.github.com/repos/{owner}/{repo}")
+    resp = requests.get(f"https://api.github.com/repos/{owner}/{repo}", timeout=10)
 
     if resp.status_code == 404:
         raise HTTPException(
@@ -79,7 +85,7 @@ def fetch_repo_metadata(owner: str, repo: str) -> dict:
 
 def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
     branch_resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}"
+        f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}", timeout=10
     )
     if branch_resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch branch info")
@@ -87,7 +93,7 @@ def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
     tree_sha = branch_resp.json()["commit"]["commit"]["tree"]["sha"]
 
     tree_resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1"
+        f"https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1", timeout=10
     )
     if tree_resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch repo tree")
@@ -96,7 +102,7 @@ def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
 
 def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
     resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/git/blobs/{sha}"
+        f"https://api.github.com/repos/{owner}/{repo}/git/blobs/{sha}", timeout=10
     )
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch file content")
@@ -196,5 +202,8 @@ def run_sbfl(data: RepoRequest):
 
         return formatted
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="SBFL execution failed"
+        )
