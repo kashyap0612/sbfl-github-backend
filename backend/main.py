@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -14,12 +7,12 @@ import base64
 import os
 from pathlib import Path
 
-from runner.repo_manager import clone_repo
-from runner.project_inspector import inspect_project
-from runner.coverage_runner import run_tests_with_coverage
-from runner.matrix_builder import build_coverage_matrix
-from runner.ochiai import compute_ochiai_scores
-from runner.result_formatter import format_sbfl_results
+from backend.runner.repo_manager import clone_repo
+from backend.runner.project_inspector import inspect_project
+from backend.runner.coverage_runner import run_tests_with_coverage
+from backend.runner.matrix_builder import build_coverage_matrix
+from backend.runner.ochiai import compute_ochiai_scores
+from backend.runner.result_formatter import format_sbfl_results
 
 # -------------------- APP INIT --------------------
 
@@ -71,11 +64,18 @@ def parse_github_repo_url(url: str) -> tuple[str, str]:
 
 def fetch_repo_metadata(owner: str, repo: str) -> dict:
     resp = requests.get(f"https://api.github.com/repos/{owner}/{repo}")
+
     if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="Repository not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Repository not found or is private"
+        )
+
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="GitHub API error")
+
     return resp.json()
+
 
 def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
     branch_resp = requests.get(
@@ -122,14 +122,15 @@ def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
 def repo_info(data: RepoRequest):
     owner, repo = parse_github_repo_url(data.repo_url)
     meta = fetch_repo_metadata(owner, repo)
+
     return {
         "name": meta["name"],
         "owner": meta["owner"]["login"],
         "description": meta["description"],
-        "stars": meta["stargazers_count"],
-        "forks": meta["forks_count"],
         "default_branch": meta["default_branch"],
+        "visibility": "private" if meta.get("private", False) else "public"
     }
+
 
 @app.post("/repo-files")
 def repo_files(data: RepoRequest):
@@ -182,8 +183,6 @@ def repo_file_content(data: FileRequest):
 
     raise HTTPException(status_code=404, detail="File not found")
 
-# -------------------- SBFL ENDPOINT --------------------
-
 @app.post("/run-sbfl")
 def run_sbfl(data: RepoRequest):
     try:
@@ -199,42 +198,3 @@ def run_sbfl(data: RepoRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# OpenAI client
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# -------------------- CHAT WITH FILE --------------------
-
-# @app.post("/chat-file")
-# def chat_file(data: ChatFileRequest):
-#     if not os.getenv("OPENAI_API_KEY"):
-#         raise HTTPException(status_code=500, detail="OpenAI API key not set")
-
-#     messages = [
-#         {
-#             "role": "system",
-#             "content": (
-#                 "You are a code assistant. "
-#                 "Answer ONLY using the given file content. "
-#                 "If the answer is not in the file, say you cannot find it."
-#             )
-#         },
-#         {
-#             "role": "user",
-#             "content": f"FILE CONTENT:\n{data.file_content}"
-#         },
-#         {
-#             "role": "user",
-#             "content": data.question
-#         }
-#     ]
-
-#     response = client.chat.completions.create(
-#         model="gpt-4o-mini",
-#         messages=messages,
-#         temperature=0
-#     )
-
-#     return {
-#         "answer": response.choices[0].message.content
-#     }

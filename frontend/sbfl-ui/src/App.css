@@ -170,7 +170,7 @@ body,
 }
 
 .chat-input textarea::placeholder {
-  color: #777;
+  color: #f9f6f6;
 }
 
 .chat-input button {
@@ -183,4 +183,10 @@ body,
 
 .chat-input button:hover {
   opacity: 0.85;
+}
+
+.code-block {
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre;
 }

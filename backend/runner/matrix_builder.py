@@ -3,7 +3,7 @@
 from collections import defaultdict
 from typing import Dict, Tuple, List
 
-from runner.coverage_runner import CoverageResult
+from .coverage_runner import CoverageResult
 
 
 def build_coverage_matrix(

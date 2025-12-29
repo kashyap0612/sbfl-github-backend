@@ -1,5 +1,19 @@
 const BASE_URL = "http://127.0.0.1:8000";
 
+export async function fetchRepoInfo(repoUrl) {
+  const res = await fetch(`${BASE_URL}/repo-info`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repo_url: repoUrl })
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch repository info");
+  }
+
+  return res.json();
+}
+
 export async function fetchRepoFiles(repoUrl) {
   const res = await fetch(`${BASE_URL}/repo-files`, {
     method: "POST",
@@ -19,7 +33,7 @@ export async function fetchFileContent(repoUrl, path) {
 }
 
 export async function chatWithFile(fileContent, question) {
-  const res = await fetch("http://127.0.0.1:8000/chat-file", {
+  const res = await fetch(`${BASE_URL}/chat-file`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -27,5 +41,19 @@ export async function chatWithFile(fileContent, question) {
       question: question
     })
   });
+  return res.json();
+}
+
+export async function runSBFL(repoUrl) {
+  const res = await fetch(`${BASE_URL}/run-sbfl`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repo_url: repoUrl })
+  });
+
+  if (!res.ok) {
+    throw new Error("SBFL execution failed");
+  }
+
   return res.json();
 }
