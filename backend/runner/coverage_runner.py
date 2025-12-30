@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import coverage
 import os
+import sys
 
 
 class CoverageResult:
@@ -29,45 +30,73 @@ def run_tests_with_coverage(repo_root: Path, test_files: list[Path]) -> list[Cov
         if coverage_file.exists():
             coverage_file.unlink()
 
+        # 🔒 Correct PYTHONPATH: repo root, not src/
         env = os.environ.copy()
-        env["PYTHONPATH"] = str(repo_root / "src")
+        env["PYTHONPATH"] = str(repo_root)
+
+        # 🔒 Always use same python that runs backend
+        cmd = [
+            sys.executable,
+            "-m",
+            "coverage",
+            "run",
+            "--source",
+            "src",
+            "-m",
+            "pytest",
+            str(test_file.relative_to(repo_root)),
+            "--quiet",
+        ]
 
         completed = subprocess.run(
-            [
-                "coverage",
-                "run",
-                "--source", "src",
-                "-m",
-                "pytest",
-                str(test_file.relative_to(repo_root)),
-                "--quiet"
-            ],
+            cmd,
             cwd=repo_root,
             env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
 
         passed = completed.returncode == 0
 
+        # 🔒 If coverage file does not exist, infra failure → skip
+        if not coverage_file.exists():
+            continue
+
         cov = coverage.Coverage(data_file=str(coverage_file))
         cov.load()
 
-        executed = set()
         data = cov.get_data()
 
+        # 🔒 If no files measured, infra failure → skip
+        if not data.measured_files():
+            cov.erase()
+            continue
+
+        executed = set()
+
         for file_path in data.measured_files():
-            if not str(file_path).startswith(str(repo_root / "src")):
+            file_path = Path(file_path)
+
+            # Only consider src/
+            if "src" not in file_path.parts:
                 continue
 
-            lines = data.lines(file_path)
-            if lines:
-                rel_path = Path(file_path).relative_to(repo_root)
-                for line in lines:
-                    executed.add((str(rel_path), line))
+            lines = data.lines(str(file_path))
+            if not lines:
+                continue
 
-        results.append(CoverageResult(test_file, passed, executed))
+            rel_path = file_path.relative_to(repo_root)
+
+            for line in lines:
+                executed.add((str(rel_path).replace("\\", "/"), line))
 
         cov.erase()
+
+        # 🔒 SBFL invariant: failing test MUST execute code
+        if not passed and not executed:
+            continue
+
+        results.append(CoverageResult(test_file, passed, executed))
 
     return results
