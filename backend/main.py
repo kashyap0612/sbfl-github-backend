@@ -1,6 +1,4 @@
-# cd backend
-# uvicorn main:app
-
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -34,7 +32,8 @@ MAX_FILE_SIZE = 200_000  # 200 KB
 
 GITHUB_HEADERS = {
     "Accept": "application/vnd.github+json",
-    "User-Agent": "sbfl-analyzer"
+    "User-Agent": "sbfl-analyzer",
+    "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}"
 }
 
 ALLOWED_EXTENSIONS = {
@@ -75,11 +74,10 @@ def parse_github_repo_url(url: str) -> tuple[str, str]:
 
 def fetch_repo_metadata(owner: str, repo: str) -> dict:
     resp = requests.get(
-    f"https://api.github.com/repos/{owner}/{repo}",
-    headers=GITHUB_HEADERS,
-    timeout=10
+        f"https://api.github.com/repos/{owner}/{repo}",
+        headers=GITHUB_HEADERS,
+        timeout=10
     )
-
 
     if resp.status_code == 404:
         raise HTTPException(
@@ -87,8 +85,17 @@ def fetch_repo_metadata(owner: str, repo: str) -> dict:
             detail="Repository not found or is private"
         )
 
+    if resp.status_code == 403:
+        raise HTTPException(
+            status_code=403,
+            detail="GitHub API rate limit exceeded or unauthorized"
+        )
+
     if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="GitHub API error")
+        raise HTTPException(
+            status_code=400,
+            detail=f"GitHub API error: {resp.status_code}"
+        )
 
     return resp.json()
 
@@ -100,8 +107,17 @@ def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
         timeout=10
     )
 
+    if branch_resp.status_code == 403:
+        raise HTTPException(
+            status_code=403,
+            detail="GitHub API rate limit exceeded or unauthorized"
+        )
+
     if branch_resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch branch info")
+        raise HTTPException(
+            status_code=400,
+            detail=f"GitHub API error: {branch_resp.status_code}"
+        )
 
     tree_sha = branch_resp.json()["commit"]["commit"]["tree"]["sha"]
 
@@ -111,8 +127,17 @@ def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
         timeout=10
     )
 
+    if tree_resp.status_code == 403:
+        raise HTTPException(
+            status_code=403,
+            detail="GitHub API rate limit exceeded or unauthorized"
+        )
+
     if tree_resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch repo tree")
+        raise HTTPException(
+            status_code=400,
+            detail=f"GitHub API error: {tree_resp.status_code}"
+        )
 
     return tree_resp.json()["tree"]
 
@@ -123,8 +148,17 @@ def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
         timeout=10
     )
 
+    if resp.status_code == 403:
+        raise HTTPException(
+            status_code=403,
+            detail="GitHub API rate limit exceeded or unauthorized"
+        )
+
     if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to fetch file content")
+        raise HTTPException(
+            status_code=400,
+            detail=f"GitHub API error: {resp.status_code}"
+        )
 
     blob = resp.json()
 
