@@ -32,6 +32,11 @@ app.add_middleware(
 
 MAX_FILE_SIZE = 200_000  # 200 KB
 
+GITHUB_HEADERS = {
+    "Accept": "application/vnd.github+json",
+    "User-Agent": "sbfl-analyzer"
+}
+
 ALLOWED_EXTENSIONS = {
     ".py", ".java", ".js", ".ts", ".cpp", ".c", ".go", ".rs", ".kt", ".scala",
     ".cs", ".php", ".rb", ".swift",
@@ -69,7 +74,12 @@ def parse_github_repo_url(url: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 def fetch_repo_metadata(owner: str, repo: str) -> dict:
-    resp = requests.get(f"https://api.github.com/repos/{owner}/{repo}", timeout=10)
+    resp = requests.get(
+    f"https://api.github.com/repos/{owner}/{repo}",
+    headers=GITHUB_HEADERS,
+    timeout=10
+    )
+
 
     if resp.status_code == 404:
         raise HTTPException(
@@ -85,16 +95,22 @@ def fetch_repo_metadata(owner: str, repo: str) -> dict:
 
 def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
     branch_resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}", timeout=10
+        f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}",
+        headers=GITHUB_HEADERS,
+        timeout=10
     )
+
     if branch_resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch branch info")
 
     tree_sha = branch_resp.json()["commit"]["commit"]["tree"]["sha"]
 
     tree_resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1", timeout=10
+        f"https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
+        headers=GITHUB_HEADERS,
+        timeout=10
     )
+
     if tree_resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch repo tree")
 
@@ -102,8 +118,11 @@ def fetch_repo_tree(owner: str, repo: str, branch: str) -> list[dict]:
 
 def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
     resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/git/blobs/{sha}", timeout=10
+        f"https://api.github.com/repos/{owner}/{repo}/git/blobs/{sha}",
+        headers=GITHUB_HEADERS,
+        timeout=10
     )
+
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Failed to fetch file content")
 
@@ -126,16 +145,26 @@ def fetch_blob_content(owner: str, repo: str, sha: str) -> str:
 
 @app.post("/repo-info")
 def repo_info(data: RepoRequest):
-    owner, repo = parse_github_repo_url(data.repo_url)
-    meta = fetch_repo_metadata(owner, repo)
+    try:
+        owner, repo = parse_github_repo_url(data.repo_url)
+        meta = fetch_repo_metadata(owner, repo)
 
-    return {
-        "name": meta["name"],
-        "owner": meta["owner"]["login"],
-        "description": meta["description"],
-        "default_branch": meta["default_branch"],
-        "visibility": "private" if meta.get("private", False) else "public"
-    }
+        return {
+            "name": meta["name"],
+            "owner": meta["owner"]["login"],
+            "description": meta["description"],
+            "default_branch": meta["default_branch"],
+            "visibility": "private" if meta.get("private", False) else "public"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("repo-info error:", repr(e))
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to fetch repository info"
+        )
 
 
 @app.post("/repo-files")
