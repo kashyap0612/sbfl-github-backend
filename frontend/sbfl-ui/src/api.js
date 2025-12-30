@@ -1,59 +1,44 @@
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export async function fetchRepoInfo(repoUrl) {
-  const res = await fetch(`${BASE_URL}/repo-info`, {
+async function post(endpoint, payload) {
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl })
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    throw new Error("Failed to fetch repository info");
+    const text = await res.text();
+    throw new Error(text || `Request failed: ${endpoint}`);
   }
 
   return res.json();
 }
 
-export async function fetchRepoFiles(repoUrl) {
-  const res = await fetch(`${BASE_URL}/repo-files`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl })
-  });
-  return res.json();
+export function fetchRepoInfo(repoUrl) {
+  return post("/repo-info", { repo_url: repoUrl });
 }
 
-export async function fetchFileContent(repoUrl, path) {
-  const res = await fetch(`${BASE_URL}/repo-file-content`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl, path })
-  });
-  return res.json();
+export function fetchRepoFiles(repoUrl) {
+  return post("/repo-files", { repo_url: repoUrl });
 }
 
-export async function chatWithFile(fileContent, question) {
-  const res = await fetch(`${BASE_URL}/chat-file`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      file_content: fileContent,
-      question: question
-    })
+export function fetchFileContent(repoUrl, path) {
+  return post("/repo-file-content", {
+    repo_url: repoUrl,
+    path,
   });
-  return res.json();
 }
 
-export async function runSBFL(repoUrl) {
-  const res = await fetch(`${BASE_URL}/run-sbfl`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl })
+export function chatWithFile(fileContent, question) {
+  return post("/chat-file", {
+    file_content: fileContent,
+    question,
   });
+}
 
-  if (!res.ok) {
-    throw new Error("SBFL execution failed");
-  }
-
-  return res.json();
+export function runSBFL(repoUrl) {
+  return post("/run-sbfl", { repo_url: repoUrl });
 }

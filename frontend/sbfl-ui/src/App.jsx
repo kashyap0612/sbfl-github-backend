@@ -61,20 +61,28 @@ function App() {
   // ---------------- FILE CLICK ----------------
 
   async function handleFileClick(path) {
+  try {
     setSelectedFile(path);
     const data = await fetchFileContent(repoUrl, path);
     setContent(data.content || "");
     setQuestion("");
     setAnswer("");
+  } catch (e) {
+    setRepoError("Failed to load file content");
   }
+}
 
   // ---------------- CHAT ----------------
 
   async function askQuestion() {
-    if (!content || !question) return;
+  if (!content || !question) return;
+  try {
     const res = await chatWithFile(content, question);
     setAnswer(res.answer);
+  } catch (e) {
+    setAnswer("Failed to get response from backend");
   }
+}
 
   // ---------------- RUN SBFL ----------------
 
