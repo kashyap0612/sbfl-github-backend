@@ -1,10 +1,7 @@
-```markdown
-# SBFL Execution Pipeline
+```SBFL Execution Pipeline```
 
 ## Overview
 The SBFL Execution Pipeline is a modular execution system that ingests a GitHub Python repository, extracts executable source files, runs spectrum-based fault localization (SBFL) on test coverage data, and highlights fault-prone code regions for analysis. The project focuses on translating SBFL research concepts into a reproducible, end-to-end debugging pipeline.
-
----
 
 ## Prerequisites
 - Python 3.9+
@@ -13,10 +10,8 @@ The SBFL Execution Pipeline is a modular execution system that ingests a GitHub 
 - pytest (used internally for execution and coverage generation)
 - A public GitHub repository containing Python code and tests
 
----
-
 ## Directory Structure
-```
+
 sbfl-execution-pipeline/
 ├── backend/
 │   ├── app/
@@ -31,8 +26,6 @@ sbfl-execution-pipeline/
 │   ├── package.json
 │   └── vite.config.js
 ├── README.md
-````
----
 
 ## Tech Stack
 **Backend**
@@ -55,47 +48,37 @@ sbfl-execution-pipeline/
 
 ### Setup
 1. Create and activate a virtual environment:
-   ```bash
+   ```
    python -m venv venv
    source venv/bin/activate   # Linux / Mac
    venv\Scripts\activate      # Windows
-````
+   ```
 
 2. Install dependencies:
-
-   ```bash
+   ```
    pip install -r requirements.txt
    ```
-
 3. Start the FastAPI server:
-
-   ```bash
+   ```
    uvicorn main:app --reload
    ```
-
----
 
 ## Frontend Setup
 
 1. Navigate to the frontend directory:
-
-   ```bash
+   ```
    cd frontend
    ```
 
 2. Install dependencies:
-
-   ```bash
+   ```
    npm install
    ```
 
 3. Start the development server:
-
-   ```bash
+   ```
    npm run dev
    ```
-
----
 
 ## Usage
 
