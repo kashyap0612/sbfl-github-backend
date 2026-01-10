@@ -1,103 +1,163 @@
-Project Name
+```markdown
+# SBFL Execution Pipeline
 
-SBFL Execution Pipeline
+## Overview
+The SBFL Execution Pipeline is a modular execution system that ingests a GitHub Python repository, extracts executable source files, runs spectrum-based fault localization (SBFL) on test coverage data, and highlights fault-prone code regions for analysis. The project focuses on translating SBFL research concepts into a reproducible, end-to-end debugging pipeline.
 
-One-line Problem Statement
+---
 
-A modular SBFL execution pipeline that ingests a GitHub Python repository, extracts executable source files, runs spectrum-based fault localization on test coverage data, and highlights fault-prone code regions for analysis.
+## Prerequisites
+- Python 3.9+
+- Node.js 16+ and npm
+- Git
+- pytest (used internally for execution and coverage generation)
+- A public GitHub repository containing Python code and tests
 
-Target Users
+---
 
-Developers and researchers building automated debugging or fault-localization tools, particularly those experimenting with Spectrum-Based Fault Localization (SBFL) techniques on Python codebases.
+## Directory Structure
+```
+sbfl-execution-pipeline/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── services/
+│   │   ├── sbfl/
+│   │   └── main.py
+│   ├── requirements.txt
+│   └── README.md
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+├── README.md
+````
+---
 
-Why this project exists
+## Tech Stack
+**Backend**
+- FastAPI (Python) for lightweight execution orchestration
+- GitHub REST APIs for repository ingestion
 
-Existing SBFL research largely focuses on benchmarking algorithms in isolation, but offers limited guidance on how to translate those ideas into an end-to-end, reproducible debugging tool. This project bridges that gap by turning SBFL concepts from research papers into a concrete execution pipeline that handles repository ingestion, execution data processing, and fault visualization in a structured software-engineering manner.
+**Frontend**
+- React (Vite) for fault localization visualization
 
-Tech Stack
+**Database**
+- None (stateless, transient execution model)
 
-Backend: FastAPI (Python) for building a lightweight execution and orchestration API
+**Algorithms / Techniques**
+- Spectrum-Based Fault Localization (SBFL)
+- Ochiai suspiciousness metric
 
-Frontend: React (Vite) for visualizing fault localization results
+---
 
-Database: None; the pipeline operates on transient execution data without persistence
+## Backend Setup
 
-Algorithms / Techniques
+### Setup
+1. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate   # Linux / Mac
+   venv\Scripts\activate      # Windows
+````
 
-Spectrum-Based Fault Localization (SBFL)
+2. Install dependencies:
 
-Ochiai suspiciousness metric
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-GitHub REST APIs for repository ingestion and source code extraction
+3. Start the FastAPI server:
 
-Core Features
+   ```bash
+   uvicorn main:app --reload
+   ```
 
-Repository ingestion pipeline that accepts a GitHub repository URL, extracts Python source files, and prepares them for analysis.
+---
 
-Execution data processing and SBFL computation using the Ochiai metric to assign suspiciousness scores to code elements.
+## Frontend Setup
 
-Visual fault localization that maps suspiciousness scores to color gradients, highlighting fault-prone regions in the source code.
+1. Navigate to the frontend directory:
 
-System Architecture (high-level)
+   ```bash
+   cd frontend
+   ```
 
-The system follows a pipeline-driven architecture where a FastAPI backend orchestrates repository ingestion, source code extraction, and fault localization computation. Given a GitHub repository URL, the backend fetches Python files using GitHub APIs, processes execution-related inputs, and computes suspiciousness scores using the Ochiai SBFL metric. The results are exposed via REST endpoints and consumed by a React frontend, which renders fault localization by mapping scores to visual highlights in the source code. The system is stateless and operates on on-demand analysis without persistent storage.
+2. Install dependencies:
 
-Key Technical Decisions
+   ```bash
+   npm install
+   ```
 
-Chose a stateless, pipeline-oriented backend design to ensure deterministic execution and simplify reasoning about fault localization results without managing persistent state.
+3. Start the development server:
 
-Used FastAPI as the backend framework to keep the execution layer lightweight and focused on orchestration of ingestion and analysis steps rather than heavy framework abstractions.
+   ```bash
+   npm run dev
+   ```
 
-Selected the Ochiai metric as the initial SBFL technique due to its strong empirical performance in fault localization research and its simplicity for validating end-to-end pipeline correctness.
+---
 
-Most complex part of the project
+## Usage
 
-The most complex part was ensuring correct end-to-end propagation of SBFL suspiciousness scores from the backend computation layer to the frontend visualization layer. This required defining a stable API contract, preserving numerical precision during serialization, and ensuring that the frontend’s color-mapping logic accurately reflected backend-generated scores without introducing interpretation errors.
+1. Open the frontend in your browser.
+2. Provide a public GitHub repository URL containing Python source files.
+3. The backend:
 
-Current Limitations
+   * Fetches repository contents using GitHub APIs
+   * Extracts Python source files
+   * Executes tests and gathers execution data
+   * Computes SBFL suspiciousness scores using the Ochiai metric
+4. The frontend visualizes fault-prone regions by mapping suspiciousness scores to color gradients.
 
-The pipeline relies on pytest-based execution, which introduces non-trivial runtime overhead and results in slower analysis for larger codebases.
+---
 
-The system is currently validated only on relatively small GitHub repositories and has not been optimized for large, multi-module projects.
+## Functional Features
 
-The backend operates in a single-execution mode without concurrency support, limiting simultaneous analyses to one repository at a time.
+* GitHub repository ingestion and Python source extraction
+* Execution data processing for SBFL computation
+* Suspiciousness score generation using the Ochiai metric
+* Visual fault localization through color-based highlighting
 
-What you would improve with more time
+---
 
-Introduce containerized code execution using Docker to isolate repository analysis, improve execution safety, and enable more predictable performance characteristics.
+## System Architecture
 
-Add concurrency support in the backend to allow parallel analysis of multiple repositories, improving throughput and enabling multi-user usage.
+The system follows a pipeline-driven architecture where a FastAPI backend orchestrates repository ingestion, source code extraction, and fault localization computation. Given a GitHub repository URL, the backend fetches Python files, processes execution-related inputs, and computes suspiciousness scores using the Ochiai SBFL metric. Results are exposed through REST endpoints and consumed by a React frontend, which renders fault localization by mapping scores to visual highlights. The system is stateless and operates on on-demand analysis without persistent storage.
 
-Extend the ingestion layer to support private GitHub repositories through authenticated access while preserving security boundaries.
+---
 
-How to Run Locally
+## Key Technical Decisions
 
-Clone the repository
+* Adopted a stateless, pipeline-oriented backend design to ensure deterministic execution and simplify reasoning about fault localization results.
+* Chose FastAPI to keep the backend lightweight and focused on orchestration rather than framework overhead.
+* Selected the Ochiai metric as the initial SBFL technique due to its strong empirical performance and simplicity for validating end-to-end pipeline correctness.
 
-git clone <repository-url>
-cd <project-directory>
+---
 
+## Most Complex Part
 
-Backend setup
+The most complex aspect of the project was ensuring correct end-to-end propagation of SBFL suspiciousness scores from backend computation to frontend visualization. This required maintaining a stable API contract, preserving numerical precision during serialization, and ensuring that frontend color-mapping logic accurately reflected backend-generated scores.
 
-python -m venv venv
-source venv/bin/activate   # Linux/Mac
-venv\Scripts\activate      # Windows
-pip install -r requirements.txt
-uvicorn main:app --reload
+---
 
+## Current Limitations
 
-Frontend setup
+* Relies on pytest-based execution, which introduces runtime overhead and slows analysis for larger repositories.
+* Validated only on relatively small GitHub repositories.
+* Supports only single execution at a time with no concurrency.
 
-cd frontend
-npm install
-npm run dev
+---
 
+## Future Improvements
 
-Usage
+* Introduce Docker-based containerized execution for safer and more predictable analysis.
+* Add backend concurrency support to allow parallel analysis of multiple repositories.
+* Extend ingestion support to private GitHub repositories through authenticated access.
 
-Provide a public GitHub repository URL through the frontend.
+---
 
-The backend ingests Python source files, runs SBFL analysis using the Ochiai metric, and returns suspiciousness scores.
+## Summary
 
-The frontend visualizes fault-prone code regions based on the computed scores.
+This project demonstrates how Spectrum-Based Fault Localization techniques can be translated from research papers into a structured, reproducible execution pipeline. By emphasizing clear separation of concerns, stateless execution, and deterministic analysis, the SBFL Execution Pipeline serves as a foundation for building more advanced automated debugging tools.
+
+```
