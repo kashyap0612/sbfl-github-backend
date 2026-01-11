@@ -255,6 +255,8 @@ def repo_file_content(data: FileRequest):
 import logging
 logging.basicConfig(level=logging.INFO)
 
+import logging
+
 @app.post("/run-sbfl")
 def run_sbfl(data: RepoRequest):
     try:
@@ -264,24 +266,24 @@ def run_sbfl(data: RepoRequest):
         logging.info("SBFL: inspecting project")
         info = inspect_project(repo_path)
 
+        logging.info(f"SBFL: detected test files: {info.get('test_files')}")
+
         logging.info("SBFL: running tests with coverage")
         cov_results = run_tests_with_coverage(repo_path, info["test_files"])
 
-        logging.info("SBFL: building coverage matrix")
+        logging.info(f"SBFL: raw coverage results: {cov_results}")
+
         matrix = build_coverage_matrix(cov_results)
+        logging.info(f"SBFL: coverage matrix: {matrix}")
 
-        logging.info("SBFL: computing ochiai scores")
         scores = compute_ochiai_scores(matrix)
+        logging.info(f"SBFL: OCHIAI scores raw: {scores}")
 
-        logging.info("SBFL: formatting results")
         formatted = format_sbfl_results(scores)
+        logging.info(f"SBFL: formatted SBFL result: {formatted}")
 
-        logging.info("SBFL: completed successfully")
         return formatted
 
-    except Exception as e:
-        logging.exception("SBFL failed")  # ← prints full stack trace in Render logs
-        raise HTTPException(
-            status_code=500,
-            detail="SBFL execution failed"
-        )
+    except Exception:
+        logging.exception("SBFL execution failed")
+        raise HTTPException(status_code=500, detail="SBFL execution failed")
