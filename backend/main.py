@@ -252,20 +252,35 @@ def repo_file_content(data: FileRequest):
 
     raise HTTPException(status_code=404, detail="File not found")
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 @app.post("/run-sbfl")
 def run_sbfl(data: RepoRequest):
     try:
+        logging.info("SBFL: cloning repo")
         repo_path = clone_repo(data.repo_url)
+
+        logging.info("SBFL: inspecting project")
         info = inspect_project(repo_path)
 
+        logging.info("SBFL: running tests with coverage")
         cov_results = run_tests_with_coverage(repo_path, info["test_files"])
+
+        logging.info("SBFL: building coverage matrix")
         matrix = build_coverage_matrix(cov_results)
+
+        logging.info("SBFL: computing ochiai scores")
         scores = compute_ochiai_scores(matrix)
+
+        logging.info("SBFL: formatting results")
         formatted = format_sbfl_results(scores)
 
+        logging.info("SBFL: completed successfully")
         return formatted
 
-    except Exception:
+    except Exception as e:
+        logging.exception("SBFL failed")  # ← prints full stack trace in Render logs
         raise HTTPException(
             status_code=500,
             detail="SBFL execution failed"
