@@ -3,3 +3,5 @@ uvicorn
 pydantic
 requests
 coverage
+pytest
+python-dotenv
