@@ -15,16 +15,20 @@ The SBFL Execution Pipeline is a modular execution system that ingests a GitHub 
 sbfl-execution-pipeline/
 ├── backend/
 │   ├── app/
-│   │   ├── api/
-│   │   ├── services/
-│   │   ├── sbfl/
-│   │   └── main.py
+│   │   ├── api/          # API endpoints and routing
+│   │   ├── core/         # Configuration and env variables
+│   │   ├── models/       # Pydantic schemas
+│   │   ├── services/     # GitHub API encapsulation
+│   │   └── main.py       # FastAPI application entry point
+│   ├── runner/           # SBFL internal logic and tests
 │   ├── requirements.txt
-│   └── README.md
+│   ├── Dockerfile
+│   └── .env
 ├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.js
+│   ├── sbfl-ui/
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── vite.config.js
 ├── README.md
 
 ## Tech Stack
@@ -46,22 +50,37 @@ sbfl-execution-pipeline/
 
 ## Backend Setup
 
-### Setup
+### Environment Variables
+Create a `.env` file in the `backend/` directory:
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+### Local Setup
 1. Create and activate a virtual environment:
-   ```
+   ```bash
    python -m venv venv
    source venv/bin/activate   # Linux / Mac
    venv\Scripts\activate      # Windows
    ```
 
-2. Install dependencies:
-   ```
+2. Install dependencies (make sure `pytest` and `python-dotenv` are included):
+   ```bash
    pip install -r requirements.txt
    ```
 3. Start the FastAPI server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000 --env-file .env
    ```
-   uvicorn main:app --reload
-   ```
+
+### Docker Setup
+To run the backend inside an isolated Docker container:
+```bash
+cd backend
+docker build -t sbfl-backend .
+docker run -p 8000:8000 --env-file .env sbfl-backend
+```
 
 ## Frontend Setup
 
@@ -133,7 +152,6 @@ The most complex aspect of the project was ensuring correct end-to-end propagati
 
 ## Future Improvements
 
-* Introduce Docker-based containerized execution for safer and more predictable analysis.
 * Add backend concurrency support to allow parallel analysis of multiple repositories.
 * Extend ingestion support to private GitHub repositories through authenticated access.
 
