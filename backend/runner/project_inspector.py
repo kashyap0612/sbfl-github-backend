@@ -2,56 +2,45 @@
 
 from pathlib import Path
 
-
 class InvalidProjectError(Exception):
     pass
 
-
 def _collect_py_files(root: Path):
     """
-    Collect .py files under root, excluding __pycache__.
+    Collect .py files under root, excluding __pycache__ and venv.
     """
     py_files = []
     for path in root.rglob("*.py"):
-        if "__pycache__" in path.parts:
+        parts = path.parts
+        if "__pycache__" in parts or "venv" in parts or ".venv" in parts or ".tox" in parts or ".git" in parts or "node_modules" in parts:
             continue
         py_files.append(path)
     return py_files
 
-
 def inspect_project(repo_path: Path):
     """
     Inspect a repo and return source & test files.
-
-    Returns:
-        {
-            "src_files": List[Path],
-            "test_files": List[Path],
-            "root": Path
-        }
+    Dynamically infers test files without hardcoding src/ or tests/ directories.
     """
-    src_dir = repo_path / "src"
-    tests_dir = repo_path / "tests"
+    all_py_files = _collect_py_files(repo_path)
+    
+    src_files = []
+    test_files = []
 
-    if not src_dir.exists():
-        raise InvalidProjectError("Missing 'src/' directory")
-
-    if not tests_dir.exists():
-        raise InvalidProjectError("Missing 'tests/' directory")
-
-    src_files = _collect_py_files(src_dir)
-
-    # 🔒 FIX: exclude conftest.py explicitly
-    test_files = [
-        p for p in _collect_py_files(tests_dir)
-        if p.name != "conftest.py"
-    ]
+    for f in all_py_files:
+        # Heuristic for test files
+        if "tests" in f.parts or "test" in f.parts or f.name.startswith("test_") or f.name.endswith("_test.py"):
+            if f.name != "conftest.py" and f.name != "__init__.py":
+                test_files.append(f)
+        else:
+            if f.name not in ["setup.py", "conftest.py"]:
+                src_files.append(f)
 
     if not src_files:
-        raise InvalidProjectError("No Python source files found in src/")
+        raise InvalidProjectError("No Python source files found.")
 
     if not test_files:
-        raise InvalidProjectError("No Python test files found in tests/")
+        raise InvalidProjectError("No Python test files found.")
 
     return {
         "root": repo_path,

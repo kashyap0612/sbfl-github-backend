@@ -1,20 +1,26 @@
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+import threading
 
-from app.models.schemas import RepoRequest, FileRequest
+from app.models.schemas import RepoRequest, FileRequest, ChatRequest
 from app.services.github_client import GitHubClient, ALLOWED_EXTENSIONS
 
 from runner.repo_manager import clone_repo
+from app.core.limiter import limiter
 from runner.project_inspector import inspect_project
 from runner.coverage_runner import run_tests_with_coverage
 from runner.matrix_builder import build_coverage_matrix
 from runner.ochiai import compute_ochiai_scores
+from runner.tarantula import compute_tarantula_scores
 from runner.result_formatter import format_sbfl_results
 
 router = APIRouter()
 github = GitHubClient()
 logger = logging.getLogger(__name__)
+
+# Concurrency lock to prevent multiple simultaneous SBFL runs
+sbfl_lock = threading.Lock()
 
 @router.get("/health")
 def health_check():
@@ -83,8 +89,21 @@ def repo_file_content(data: FileRequest):
 
     raise HTTPException(status_code=404, detail="File not found")
 
+@router.post("/chat-file")
+def chat_file(data: ChatRequest):
+    return {
+        "answer": "Coming Soon: Integration with Gemini API to provide LLM-assisted analysis of this fault is currently in development."
+    }
+
 @router.post("/run-sbfl")
-def run_sbfl(data: RepoRequest):
+@limiter.limit("5/minute")
+def run_sbfl(request: Request, data: RepoRequest):
+    if not sbfl_lock.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429, 
+            detail="Another SBFL analysis is currently in progress. Please try again later."
+        )
+
     try:
         logger.info("SBFL: cloning repo")
         repo_path = clone_repo(data.repo_url)
@@ -96,7 +115,12 @@ def run_sbfl(data: RepoRequest):
         cov_results = run_tests_with_coverage(repo_path, info["test_files"])
 
         matrix = build_coverage_matrix(cov_results)
-        scores = compute_ochiai_scores(matrix)
+        
+        if data.metric.lower() == "tarantula":
+            scores = compute_tarantula_scores(matrix)
+        else:
+            scores = compute_ochiai_scores(matrix)
+            
         formatted = format_sbfl_results(scores)
 
         return formatted
@@ -104,3 +128,5 @@ def run_sbfl(data: RepoRequest):
     except Exception as e:
         logger.exception("SBFL execution failed")
         raise HTTPException(status_code=500, detail="SBFL execution failed")
+    finally:
+        sbfl_lock.release()

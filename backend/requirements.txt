@@ -5,3 +5,4 @@ requests
 coverage
 pytest
 python-dotenv
+slowapi
