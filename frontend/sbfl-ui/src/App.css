@@ -23,12 +23,28 @@ body,
   width: 100vw;
 }
 
-/* ---- SIDEBAR (ChatGPT-like) ---- */
+/* ---- SIDEBAR ---- */
 .sidebar {
   background: #0c0c0c;
   border-right: 1px solid #1f1f1f;
   padding: 16px;
   overflow-y: auto;
+}
+
+.info-banner {
+  background: rgba(16, 163, 127, 0.1);
+  border: 1px solid rgba(16, 163, 127, 0.3);
+  color: #10a37f;
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.info-banner code {
+  background: rgba(16, 163, 127, 0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
 .sidebar h3 {
@@ -58,10 +74,32 @@ body,
   color: #e6e6e6;
   border-radius: 6px;
   cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 35px;
 }
 
-.sidebar button:hover {
+.sidebar button:hover:not(:disabled) {
   background: #222;
+}
+
+.sidebar button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .filter label {
@@ -82,6 +120,7 @@ body,
   cursor: pointer;
   font-size: 13px;
   color: #d1d5db;
+  word-break: break-all;
 }
 
 .file-item:hover {
@@ -97,65 +136,99 @@ body,
 /* ---- WORKSPACE ---- */
 .workspace {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   height: 100%;
   background: #0f0f0f;
+  overflow: hidden;
 }
 
-/* ---- CODE VIEW ---- */
+/* ---- CODE VIEW & DASHBOARD ---- */
 .code-pane {
-  background: #111;
-  padding: 16px;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  background: #1e1e1e; /* VSCode Dark+ standard background */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-bottom: 1px solid #1f1f1f;
 }
 
-.code-pane pre {
-  margin: 0;
-  white-space: pre-wrap;
-  color: #e5e7eb;
+.code-header {
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #a1a1a1;
+}
+
+.max-score {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #2a2a2a;
+  font-weight: 500;
+}
+
+.max-score.warning {
+  color: #ffaa00;
+  background: rgba(255, 170, 0, 0.1);
+}
+
+.max-score.danger {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.editor-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #777;
+  font-size: 14px;
 }
 
 /* ---- CHAT ---- */
 .chat-pane {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  max-height: 250px;
 }
 
 .chat-messages {
-  flex: 1;
   overflow-y: auto;
-  padding: 24px;
-  max-width: 720px;
-  margin: 0 auto;
+  padding: 16px 24px;
 }
 
 .chat-messages pre {
   background: #1a1a1a;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 12px;
+  border-radius: 6px;
   white-space: pre-wrap;
   border: 1px solid #2a2a2a;
   color: #e6e6e6;
+  margin: 0;
+  font-size: 13px;
 }
 
-/* ---- CHAT INPUT (Dynamic Island) ---- */
+/* ---- CHAT INPUT ---- */
 .chat-input {
-  position: fixed;
-  bottom: 20px;
-  left: calc(280px + 50%);
-  transform: translateX(-50%);
-  width: 720px;
   background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 999px;
-  padding: 10px 14px;
+  border-top: 1px solid #2a2a2a;
+  padding: 12px 24px;
   display: flex;
   gap: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  align-items: center;
 }
 
 .chat-input textarea {
@@ -166,11 +239,11 @@ body,
   outline: none;
   color: #e6e6e6;
   font-size: 14px;
-  height: 28px;
+  height: 24px;
 }
 
 .chat-input textarea::placeholder {
-  color: #f9f6f6;
+  color: #888;
 }
 
 .chat-input button {
@@ -179,14 +252,29 @@ body,
   color: #10a37f;
   font-size: 16px;
   cursor: pointer;
+  padding: 4px;
 }
 
 .chat-input button:hover {
   opacity: 0.85;
 }
 
-.code-block {
-  font-family: monospace;
-  font-size: 13px;
-  white-space: pre;
+/* ---- SBFL OUTPUT ---- */
+.sbfl-pane {
+  padding: 16px;
+  background: #0f0f0f;
+  border-top: 1px solid #1f1f1f;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sbfl-pane h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+
+.sbfl-pane pre {
+  font-size: 12px;
+  color: #a1a1a1;
+  margin: 0;
 }

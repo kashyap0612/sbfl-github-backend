@@ -6,6 +6,8 @@ import {
   chatWithFile,
   runSBFL,
 } from "./api";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import "./App.css";
 
 function App() {
@@ -112,12 +114,55 @@ function App() {
   const sbflLines =
     sbflResult && selectedFile ? sbflResult[selectedFile] || {} : {};
 
+  // Find max suspiciousness in the current file
+  const fileScores = Object.values(sbflLines);
+  const maxScore = fileScores.length > 0 ? Math.max(...fileScores).toFixed(2) : null;
+
+  // Generate heatmap styles based on string-coerced line number
+  const getLineProps = (lineNumber) => {
+    const score = sbflLines[String(lineNumber)];
+    let style = { display: "block", cursor: "text" };
+    if (score !== undefined) {
+      if (score >= 0.8) style.backgroundColor = "rgba(255, 0, 0, 0.45)";
+      else if (score >= 0.5) style.backgroundColor = "rgba(255, 128, 0, 0.3)";
+      else if (score >= 0.2) style.backgroundColor = "rgba(255, 255, 0, 0.15)";
+    }
+    return { style };
+  };
+
   // ---------------- UI ----------------
 
   return (
     <div className="app">
       {/* LEFT SIDEBAR */}
       <aside className="sidebar">
+        <div className="banner info-banner">
+          <strong>Note:</strong> Repository must contain standard discoverable Python test files (<code>test_*.py</code> or <code>*_test.py</code>).
+          <div style={{ marginTop: "8px" }}>
+            <strong>Demo Repositories (click to use):</strong>
+            <ul style={{ paddingLeft: "16px", margin: "4px 0 0 0" }}>
+              <li>
+                <span 
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => setRepoUrl("https://github.com/kashyap0612/sbfl-target-repo_1")}
+                  title="Click to auto-fill"
+                >
+                  https://github.com/kashyap0612/sbfl-target-repo_1
+                </span>
+              </li>
+              <li style={{ marginTop: "4px" }}>
+                <span 
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => setRepoUrl("https://github.com/kashyap0612/sbfl_target_repo_2")}
+                  title="Click to auto-fill"
+                >
+                  https://github.com/kashyap0612/sbfl_target_repo_2
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <h3>Repository</h3>
 
         <input
@@ -137,8 +182,13 @@ function App() {
           onClick={handleRunSBFL}
           disabled={sbflLoading}
           style={{ marginTop: "8px" }}
+          className={sbflLoading ? "loading-btn" : ""}
         >
-          {sbflLoading ? "Running SBFL..." : "Run SBFL"}
+          {sbflLoading ? (
+            <span className="spinner"></span>
+          ) : (
+            "Run SBFL"
+          )}
         </button>
 
         <div className="filter">
@@ -176,43 +226,37 @@ function App() {
         {/* CODE VIEW */}
         <section className="code-pane">
           {content ? (
-            <pre className="code-block">
-              {content.split("\n").map((line, idx) => {
-                const lineNumber = idx + 1;
-                const score = sbflLines[lineNumber];
-
-                let bg = "transparent";
-                if (score >= 0.8) bg = "#4b0000";
-                else if (score >= 0.5) bg = "#5c3a00";
-                else if (score >= 0.2) bg = "#5c5c00";
-
-                return (
-                  <div
-                    key={lineNumber}
-                    style={{
-                      backgroundColor: bg,
-                      display: "flex",
-                      padding: "0 8px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 40,
-                        color: "#666",
-                        userSelect: "none",
-                      }}
-                    >
-                      {lineNumber}
-                    </span>
-                    <code>{line}</code>
-                  </div>
-                );
-              })}
-            </pre>
+            <>
+              <div className="code-header">
+                <span className="file-name">{selectedFile}</span>
+                {maxScore !== null && (
+                  <span className={`max-score ${maxScore >= 0.8 ? 'danger' : maxScore >= 0.5 ? 'warning' : ''}`}>
+                    Max Suspiciousness: {maxScore}
+                  </span>
+                )}
+              </div>
+              <div className="editor-container">
+                <SyntaxHighlighter
+                  language="python"
+                  style={vscDarkPlus}
+                  showLineNumbers={true}
+                  wrapLines={true}
+                  lineProps={getLineProps}
+                  customStyle={{
+                    margin: 0,
+                    padding: "16px",
+                    background: "transparent",
+                    fontSize: "13px"
+                  }}
+                >
+                  {content}
+                </SyntaxHighlighter>
+              </div>
+            </>
           ) : (
-            <p style={{ color: "#777" }}>
-              Select a file to view its contents
-            </p>
+            <div className="empty-state">
+              <p>Select a file to view its contents</p>
+            </div>
           )}
         </section>
 
