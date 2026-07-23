@@ -18,9 +18,11 @@ from runner.result_formatter import format_sbfl_results
 
 app = FastAPI()
 
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:9000,http://localhost:5173")
+origins_list = allowed_origins_str.split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sbfl-github-frontend.vercel.app","http://localhost:9000"],
+    allow_origins=origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
